@@ -90,29 +90,36 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
 
 
 def generate_hashes(peaks, fan_value=DEFAULT_FAN_VALUE):
-    """
-    Hash list structure:
-       sha1_hash[0:20]    time_offset
-    [(e05b341a9b77a51fd26, 32), ... ]
-    """
-    fingerprinted = set()  # to avoid rehashing same pairs
+    tFreqs = {}
+    for freq,t in peaks:
+        if tFreqs.has_key(t):
+            tFreqs[t].append(freq)
+        else:
+            tFreqs[t] = [freq,]
 
-    for i in range(len(peaks)):
-        for j in range(1,fan_value):
-            if (i + j) < len(peaks) and not (i, i + j) in fingerprinted:
-                freq1 = peaks[i][IDX_FREQ_I]
-                freq2 = peaks[i + j][IDX_FREQ_I]
+    keys = tFreqs.keys()
+    keys.sort()
 
-                t1 = peaks[i][IDX_TIME_J]
-                t2 = peaks[i + j][IDX_TIME_J]
+    for i in range(len(keys)):
+        t = keys[i]
+        tFreqs[t].sort()
 
-                t_delta = t2 - t1
+    for startPos in range(len(keys)):
 
-                if t_delta >= MIN_HASH_TIME_DELTA:
-                    h = hashlib.sha1(
-                        "%s|%s|%s" % (str(freq1), str(freq2), str(t_delta))
-                    )
-                    yield (h.hexdigest()[0:20], t1)
+        for i in range(1,3):
+            endPos = startPos+i
 
-                # ensure we don't repeat hashing
-                fingerprinted.add((i, i + j))
+            if endPos>=len(keys):
+                break
+
+            startT = keys[startPos]
+            endT = keys[endPos]
+
+            if endT-startT>200:
+                break
+
+            for startFeq in tFreqs[startT]:
+                for endFeq in tFreqs[endT]:
+                    h = hashlib.md5("%s|%s|%s"%(startFeq,endFeq,str(endT-startT)))
+                    yield(h.hexdigest()[0:16], startT)
+            endPos += 1
